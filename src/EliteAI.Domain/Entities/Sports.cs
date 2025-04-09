@@ -4,17 +4,17 @@ using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_sports")]
+[Table("sports")]
 public class Sports
 {
     [Key]
     [Column("id")]
     public Guid Id { get; set; }
 
-    [Column("player_profile_id")]
+    [Column("profile_id")]
     public Guid ProfileId { get; set; }
 
-    [ForeignKey("ProfileId")]
+    [ForeignKey("profile")]
     public virtual Profile Profile { get; set; } = null!;
 
     [Column("sport")]

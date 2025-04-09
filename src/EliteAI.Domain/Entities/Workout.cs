@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_workouts")]
+[Table("workouts")]
 public class Workout
 {
     [Key]
@@ -22,12 +22,15 @@ public class Workout
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
-    [Column("player_workout_plan_schedule_id")]
+    [Column("workout_plan_schedule_id")]
     public Guid WorkoutPlanScheduleId { get; set; }
 
     [ForeignKey("WorkoutPlanScheduleId")]
     public virtual WorkoutPlanSchedule WorkoutPlanSchedule { get; set; } = null!;
 
+    [Column("exercises")]
     public virtual ICollection<WorkoutExercise> Exercises { get; set; } = new List<WorkoutExercise>();
+
+    [Column("workout_log")]
     public virtual WorkoutLog? WorkoutLog { get; set; }
 } 

@@ -4,7 +4,7 @@ using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_profiles")]
+[Table("profiles")]
 public class Profile
 {
     [Key]
@@ -50,6 +50,9 @@ public class Profile
     [Column("training_frequency")]
     public TrainingFrequency? TrainingFrequency { get; set; }
 
+    [Column("sports")]
     public virtual ICollection<Sports> Sports { get; set; } = new List<Sports>();
+
+    [Column("workout_logs")]
     public virtual ICollection<WorkoutLog> WorkoutLogs { get; set; } = new List<WorkoutLog>();
 } 

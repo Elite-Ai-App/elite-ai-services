@@ -4,6 +4,7 @@ using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
+[Table("users")]
 public class User
 {
     [Key]
@@ -32,7 +33,7 @@ public class User
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     [Column("unit_type")]
-    public UnitType UnitType { get; set; } = UnitType.IMPERIAL;
+    public UnitType UnitType { get; set; } = UnitType.METRIC;
 
     [Column("profile_picture_url")]
     public string? ProfilePictureUrl { get; set; }
@@ -40,6 +41,9 @@ public class User
     [Column("onboarding_complete")]
     public bool OnboardingComplete { get; set; } = false;
 
+    [Column("profile")]
     public virtual Profile? Profile { get; set; }
+
+    [Column("workout_plan_schedules")]
     public virtual ICollection<WorkoutPlan> WorkoutPlanSchedules { get; set; } = new List<WorkoutPlan>();
 } 

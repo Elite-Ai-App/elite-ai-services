@@ -4,17 +4,17 @@ using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_workout_plan_schedules")]
+[Table("workout_plan_schedules")]
 public class WorkoutPlanSchedule
 {
     [Key]
     [Column("id")]
     public Guid Id { get; set; }
 
-    [Column("player_workout_plan_id")]
+    [Column("workout_plan_id")]
     public Guid WorkoutPlanId { get; set; }
 
-    [ForeignKey("WorkoutPlanId")]
+    [ForeignKey("workout_plan")]
     public virtual WorkoutPlan WorkoutPlan { get; set; } = null!;
 
     [Column("day_of_week")]

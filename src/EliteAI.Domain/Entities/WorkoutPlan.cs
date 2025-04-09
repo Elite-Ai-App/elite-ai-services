@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_workout_plans")]
+[Table("workout_plans")]
 public class WorkoutPlan
 {
     [Key]
@@ -13,7 +13,7 @@ public class WorkoutPlan
     [Column("user_id")]
     public Guid UserId { get; set; }
 
-    [ForeignKey("UserId")]
+    [ForeignKey("user")]
     public virtual User User { get; set; } = null!;
 
     [Column("name")]

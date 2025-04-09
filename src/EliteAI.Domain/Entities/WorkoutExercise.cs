@@ -3,23 +3,23 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EliteAI.Domain.Entities;
 
-[Table("player_workout_exercises")]
+[Table("workout_exercises")]
 public class WorkoutExercise
 {
     [Key]
     [Column("id")]
     public Guid Id { get; set; }
 
-    [Column("player_workout_id")]
+    [Column("workout_id")]
     public Guid WorkoutId { get; set; }
 
-    [ForeignKey("WorkoutId")]
+    [ForeignKey("workout")]
     public virtual Workout Workout { get; set; } = null!;
 
     [Column("exercise_id")]
     public Guid ExerciseId { get; set; }
 
-    [ForeignKey("ExerciseId")]
+    [ForeignKey("exercise")]
     public virtual Exercise Exercise { get; set; } = null!;
 
     [Column("sets")]

@@ -10,21 +10,16 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
-    public DbSet<Profile> Profiles { get; set; }
-    public DbSet<Sports> Sports { get; set; }
-    public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
-    public DbSet<WorkoutPlanSchedule> WorkoutPlanSchedules { get; set; }
-    public DbSet<Workout> Workouts { get; set; }
-    public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
-    public DbSet<WorkoutLog> WorkoutLogs { get; set; }
-    public DbSet<Exercise> Exercises { get; set; }
+    public DbSet<Profile> PlayerProfiles { get; set; }
+    public DbSet<Sports> PlayerSports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema("public");
 
         // Configure User
-        modelBuilder.Entity<User>()
+        modelBuilder.Entity<User>()           
             .HasIndex(u => u.UserName)
             .IsUnique();
 
