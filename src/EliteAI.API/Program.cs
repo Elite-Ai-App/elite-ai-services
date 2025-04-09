@@ -24,7 +24,6 @@ var supabaseUrl = builder.Configuration["Supabase:Url"] ??
 var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"] ?? 
     throw new InvalidOperationException("Supabase Anon Key is not configured. Please add 'Supabase:ServiceRoleKey' to your configuration.");
 
-builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseServiceRoleKey));
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -112,28 +111,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
