@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
@@ -17,10 +18,10 @@ public class Profile
     public virtual User User { get; set; } = null!;
 
     [Column("height")]
-    public int? Height { get; set; }
+    public decimal? Height { get; set; }
 
     [Column("weight")]
-    public int? Weight { get; set; }
+    public decimal? Weight { get; set; }
 
     [Column("gender")]
     public Gender? Gender { get; set; }

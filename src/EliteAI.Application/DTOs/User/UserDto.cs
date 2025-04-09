@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using EliteAI.Application.DTOs.Base;
 using EliteAI.Domain;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Application.DTOs.User;
 

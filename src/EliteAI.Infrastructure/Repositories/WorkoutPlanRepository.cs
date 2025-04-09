@@ -1,5 +1,8 @@
+using System;
 using EliteAI.Application.Interfaces;
+using EliteAI.Domain;
 using EliteAI.Domain.Entities;
+using EliteAI.Domain.Enums;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +22,7 @@ public class WorkoutPlanRepository : Repository<WorkoutPlan>, IWorkoutPlanReposi
             .ToListAsync();
     }
 
-    public async Task<WorkoutPlan> AddScheduleAsync(Guid id, DayOfWeek dayOfWeek, string workoutPlanName, DateTime date)
+    public async Task<WorkoutPlan> AddScheduleAsync(Guid id, TrainingDayOfWeek dayOfWeek, string workoutPlanName, DateTime date)
     {
         var plan = await _dbSet
             .Include(p => p.Schedules)

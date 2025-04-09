@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using EliteAI.Application.DTOs.Base;
 using EliteAI.Domain;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Application.DTOs.Workout;
 
@@ -34,7 +35,7 @@ public class WorkoutScheduleDto : BaseDto
     public Guid WorkoutId { get; set; }
 
     [Required]
-    public DayOfWeek DayOfWeek { get; set; }
+    public TrainingDayOfWeek DayOfWeek { get; set; }
 
     [Required]
     [StringLength(100)]
@@ -97,7 +98,7 @@ public class CreateWorkoutDto
 public class CreateWorkoutScheduleDto
 {
     [Required]
-    public DayOfWeek DayOfWeek { get; set; }
+    public TrainingDayOfWeek DayOfWeek { get; set; }
 
     [Required]
     [StringLength(100)]
@@ -149,7 +150,7 @@ public class UpdateWorkoutDto
 
 public class UpdateWorkoutScheduleDto
 {
-    public DayOfWeek? DayOfWeek { get; set; }
+    public TrainingDayOfWeek? DayOfWeek { get; set; }
 
     [StringLength(100)]
     public string? WorkoutPlanName { get; set; }

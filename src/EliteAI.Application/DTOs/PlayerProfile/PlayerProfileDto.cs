@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using EliteAI.Application.DTOs.Base;
 using EliteAI.Domain;
+using EliteAI.Domain.Enums;
 
-namespace EliteAI.Application.DTOs.PlayerProfile;
+namespace EliteAI.Application.DTOs.Profile;
 
-public class PlayerProfileDto : BaseDto
+public class ProfileDto : BaseDto
 {
     [Required]
     public Guid UserId { get; set; }
@@ -35,7 +36,7 @@ public class PlayerProfileDto : BaseDto
     public TrainingFrequency? TrainingFrequency { get; set; }
 }
 
-public class CreatePlayerProfileDto
+public class CreateProfileDto
 {
     [Required]
     public Guid UserId { get; set; }
@@ -66,7 +67,7 @@ public class CreatePlayerProfileDto
     public TrainingFrequency? TrainingFrequency { get; set; }
 }
 
-public class UpdatePlayerProfileDto
+public class UpdateProfileDto
 {
     [Range(0, 300)]
     public int? Height { get; set; }

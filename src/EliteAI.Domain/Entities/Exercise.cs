@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
@@ -34,5 +35,5 @@ public class Exercise
     [Column("type")]
     public ExerciseType Type { get; set; }
 
-    public virtual ICollection<PlayerWorkoutExercise> PlayerWorkoutExercises { get; set; } = new List<PlayerWorkoutExercise>();
+    public virtual ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
 } 

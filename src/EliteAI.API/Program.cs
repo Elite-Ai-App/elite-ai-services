@@ -14,12 +14,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Supabase
-var supabaseUrl = builder.Configuration["Supabase:Url"];
-var supabaseKey = builder.Configuration["Supabase:Key"];
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-builder.Services.AddScoped<Supabase.Client>(_ => 
-    new Supabase.Client(supabaseUrl, supabaseKey));
+// Add Supabase client
+var supabaseUrl = builder.Configuration["Supabase:Url"] ?? 
+    throw new InvalidOperationException("Supabase URL is not configured. Please add 'Supabase:Url' to your configuration.");
+var supabaseKey = builder.Configuration["Supabase:Key"] ?? 
+    throw new InvalidOperationException("Supabase Key is not configured. Please add 'Supabase:Key' to your configuration.");
+
+builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseKey));
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -97,11 +102,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EliteAI API V1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI at the root URL
-    });
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();

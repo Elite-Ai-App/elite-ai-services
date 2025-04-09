@@ -1,5 +1,6 @@
 using EliteAI.Application.Interfaces;
 using EliteAI.Domain.Entities;
+using EliteAI.Domain.Enums;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 

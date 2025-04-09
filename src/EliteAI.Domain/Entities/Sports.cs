@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 

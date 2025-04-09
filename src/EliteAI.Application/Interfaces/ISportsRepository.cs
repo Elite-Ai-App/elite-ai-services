@@ -1,4 +1,6 @@
+using EliteAI.Domain;
 using EliteAI.Domain.Entities;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Application.Interfaces;
 

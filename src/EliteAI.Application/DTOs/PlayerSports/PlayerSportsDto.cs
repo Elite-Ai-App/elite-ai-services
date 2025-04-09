@@ -1,13 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using EliteAI.Application.DTOs.Base;
 using EliteAI.Domain;
+using EliteAI.Domain.Enums;
 
-namespace EliteAI.Application.DTOs.PlayerSports;
+namespace EliteAI.Application.DTOs.Sports;
 
-public class PlayerSportsDto : BaseDto
+public class SportsDto : BaseDto
 {
     [Required]
-    public Guid PlayerProfileId { get; set; }
+    public Guid ProfileId { get; set; }
 
     [Required]
     public Sport Sport { get; set; }
@@ -25,10 +26,10 @@ public class PlayerSportsDto : BaseDto
     public Goal[] Goals { get; set; } = Array.Empty<Goal>();
 }
 
-public class CreatePlayerSportsDto
+public class CreateSportsDto
 {
     [Required]
-    public Guid PlayerProfileId { get; set; }
+    public Guid ProfileId { get; set; }
 
     [Required]
     public Sport Sport { get; set; }
@@ -46,7 +47,7 @@ public class CreatePlayerSportsDto
     public Goal[] Goals { get; set; } = Array.Empty<Goal>();
 }
 
-public class UpdatePlayerSportsDto
+public class UpdateSportsDto
 {
     [DataType(DataType.DateTime)]
     public DateTime? SeasonStart { get; set; }

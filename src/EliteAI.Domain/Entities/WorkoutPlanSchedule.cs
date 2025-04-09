@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
@@ -17,7 +18,7 @@ public class WorkoutPlanSchedule
     public virtual WorkoutPlan WorkoutPlan { get; set; } = null!;
 
     [Column("day_of_week")]
-    public DayOfWeek DayOfWeek { get; set; }
+    public TrainingDayOfWeek DayOfWeek { get; set; }
 
     [Column("workout_plan_name")]
     public string WorkoutPlanName { get; set; } = null!;

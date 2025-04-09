@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using EliteAI.Domain.Entities;
 using EliteAI.Application.Interfaces;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -55,5 +54,15 @@ public class Repository<T> : IRepository<T> where T : class
     public async Task<bool> ExistsAsync(Guid id)
     {
         return await _dbSet.FindAsync(id) != null;
+    }   
+    
+
+    public async Task<T> CreateAsync(T entity)
+    {
+        _dbSet.Add(entity);
+
+        await _context.SaveChangesAsync();
+
+        return entity;
     }
 } 

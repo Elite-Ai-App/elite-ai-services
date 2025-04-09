@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using EliteAI.Domain.Enums;
 
 namespace EliteAI.Domain.Entities;
 
@@ -39,6 +40,6 @@ public class User
     [Column("onboarding_complete")]
     public bool OnboardingComplete { get; set; } = false;
 
-    public virtual PlayerProfile? PlayerProfile { get; set; }
-    public virtual ICollection<PlayerWorkoutPlan> PlayerWorkoutPlanSchedules { get; set; } = new List<PlayerWorkoutPlan>();
+    public virtual Profile? Profile { get; set; }
+    public virtual ICollection<WorkoutPlan> WorkoutPlanSchedules { get; set; } = new List<WorkoutPlan>();
 } 
