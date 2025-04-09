@@ -9,12 +9,27 @@ using AutoMapper;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using EliteAI.Application.Services;
+using System.Net.Http.Json;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
+
+// Configure CORS for Swagger UI
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -37,8 +52,9 @@ builder.Services.AddSwaggerGen(c =>
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -50,7 +66,10 @@ builder.Services.AddSwaggerGen(c =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
-                }
+                },
+                Scheme = "Bearer",
+                Name = "Authorization",
+                In = ParameterLocation.Header
             },
             Array.Empty<string>()
         }
@@ -63,23 +82,31 @@ var supabaseUrl = builder.Configuration["Supabase:Url"] ??
 var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"] ?? 
     throw new InvalidOperationException("Supabase Anon Key is not configured. Please add 'Supabase:AnonKey' to your configuration.");
 
+var supabaseJwtSecret = builder.Configuration["Supabase:JwtSecret"] ?? throw new InvalidOperationException("Supabase JWT Secret is not configured. Please add 'Supabase:JwtScret' to your configuration.");
+
 builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseAnonKey));
+
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
-    {
-        options.Authority = supabaseUrl;
+    {       
         options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = false,
-            ValidateLifetime = true,
+        { 
+    
             ValidateIssuerSigningKey = true,
-            ValidIssuer = supabaseUrl,
-            RequireExpirationTime = true,
-            RequireSignedTokens = true,
-           
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("Qofhpe8/4N1l8q5U1eu28U/qkwPLNyOgYgL0QdLO/ttdWz+49SrYjm7Z9nu2+TD85TmAqPzmbFbheFlkpkOAmw==")),
+            ValidIssuer = "https://sddwxswbsezboorhimuf.supabase.co/auth/v1",            
+            ValidAudience = "authenticated",        
+   
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("JWT Error: " + context.Exception.Message);
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -92,6 +119,8 @@ builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
 // Register repositories
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<UserService>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -105,12 +134,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "EliteAI API V1");
-        c.RoutePrefix = "swagger"; // Set the Swagger UI route to /swagger
+        c.RoutePrefix = "swagger";
     });
 }
 
 app.UseHttpsRedirection();
 
+// Enable CORS
+app.UseCors();
+
+// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 

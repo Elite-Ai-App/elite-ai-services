@@ -6,15 +6,13 @@ using EliteAI.Domain.Enums;
 namespace EliteAI.Application.DTOs.Profile;
 
 public class ProfileDto : BaseDto
-{
-    [Required]
-    public Guid UserId { get; set; }
+{   
 
     [Range(0, 300)]
-    public int? Height { get; set; }
+    public decimal? Height { get; set; }
 
     [Range(0, 500)]
-    public int? Weight { get; set; }
+    public decimal? Weight { get; set; }
 
     public Gender? Gender { get; set; }
 

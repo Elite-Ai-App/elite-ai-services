@@ -6,9 +6,7 @@ using EliteAI.Domain.Enums;
 namespace EliteAI.Application.DTOs.Sports;
 
 public class SportsDto : BaseDto
-{
-    [Required]
-    public Guid ProfileId { get; set; }
+{   
 
     [Required]
     public Sport Sport { get; set; }

@@ -1,3 +1,5 @@
+using EliteAI.Application.DTOs.Profile;
+using EliteAI.Application.DTOs.Sports;
 using EliteAI.Application.DTOs.User;
 using EliteAI.Application.Interfaces;
 using EliteAI.Domain.Entities;
@@ -29,14 +31,49 @@ public class UserService
     public async Task<UserDto> GetUserByIdAsync(Guid id)
     {
         var user = await _userRepository.GetCompleteProfile(id);
+        if (user == null)
+        {
+            throw new KeyNotFoundException($"User with ID {id} not found.");
+        }
+        
+        var sport = user.Profile?.Sports?.FirstOrDefault();
+
 
         var userDto = new UserDto
         {
-            Id = id,
-
-
+            Id = user.Id,
+            FirstName = user.FirstName ?? string.Empty,
+            LastName = user.LastName ?? string.Empty,
+            UserName = user.UserName ?? string.Empty,
+            UnitType = user.UnitType,
+            ProfilePictureUrl = user.ProfilePictureUrl,
+            OnboardingComplete = user.OnboardingComplete,
+            Profile = user.Profile != null ? new ProfileDto
+            {
+                Id = user.Profile.Id,              
+                Height = user.Profile.Height,
+                Weight = user.Profile.Weight,
+                AgeGroup = user.Profile.AgeGroup,
+                Gender = user.Profile.Gender,
+                AvailableEquipment = user.Profile.AvailableEquipment,
+                GymAccess = user.Profile.GymAccess,
+                GymExperience = user.Profile.GymExperience,
+                Injured = user.Profile.Injured,
+                Injuries = user.Profile.Injuries,
+                TrainingFrequency = user.Profile.TrainingFrequency,               
+              
+            } : null,
+            SportsDto = sport != null ? new SportsDto
+            {
+                Id = sport.Id,               
+                Sport = sport.Sport,
+                SeasonStart = sport.SeasonStart,
+                SeasonEnd = sport.SeasonEnd,
+                Position = sport.Position,
+                SportLevel = sport.SportLevel,
+                Goals = sport.Goals
+            } : null
         };
-
 
         return userDto;
     }
