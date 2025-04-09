@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using EliteAI.Domain.Entities;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure;
 
 namespace EliteAI.Infrastructure.Data;
 
@@ -25,6 +26,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Exercise> Exercises { get; set; }
 
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -32,7 +34,7 @@ public class ApplicationDbContext : DbContext
 
         // Configure User
         modelBuilder.Entity<User>()           
-            .HasIndex(u => u.UserName)
+            .HasIndex(u => u.Id)
             .IsUnique();
 
         // Configure Profile
@@ -80,8 +82,5 @@ public class ApplicationDbContext : DbContext
             .WithOne(w => w.WorkoutLog)
             .HasForeignKey<WorkoutLog>(l => l.WorkoutId)            
             .OnDelete(DeleteBehavior.Cascade);
-
-
-        
     }
 } 
