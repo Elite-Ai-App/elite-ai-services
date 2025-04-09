@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using EliteAI.Domain.Entities;
 using EliteAI.Application.Interfaces;
 using EliteAI.Infrastructure.Data;
@@ -26,6 +27,11 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.ToListAsync();
     }
 
+    public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _dbSet.Where(predicate).ToListAsync();
+    }
+
     public async Task<T> AddAsync(T entity)
     {
         await _dbSet.AddAsync(entity);
@@ -33,20 +39,17 @@ public class Repository<T> : IRepository<T> where T : class
         return entity;
     }
 
-    public async Task UpdateAsync(T entity)
+    public async Task<T> UpdateAsync(T entity)
     {
         _dbSet.Update(entity);
         await _context.SaveChangesAsync();
+        return entity;
     }
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(T entity)
     {
-        var entity = await GetByIdAsync(id);
-        if (entity != null)
-        {
-            _dbSet.Remove(entity);
-            await _context.SaveChangesAsync();
-        }
+        _dbSet.Remove(entity);
+        await _context.SaveChangesAsync();
     }
 
     public async Task<bool> ExistsAsync(Guid id)
