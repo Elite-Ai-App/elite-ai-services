@@ -1,3 +1,4 @@
+using EliteAI.Application.DTOs.User;
 using EliteAI.Application.Interfaces;
 using EliteAI.Domain.Entities;
 using EliteAI.Domain.Enums;
@@ -25,9 +26,19 @@ public class UserService
     /// </summary>
     /// <param name="id">The unique identifier of the user.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the user or null if not found.</returns>
-    public async Task<User?> GetUserByIdAsync(Guid id)
+    public async Task<UserDto> GetUserByIdAsync(Guid id)
     {
-        return await _userRepository.GetByIdAsync(id);
+        var user = await _userRepository.GetCompleteProfile(id);
+
+        var userDto = new UserDto
+        {
+            Id = id,
+
+
+        };
+
+
+        return userDto;
     }
 
     /// <summary>

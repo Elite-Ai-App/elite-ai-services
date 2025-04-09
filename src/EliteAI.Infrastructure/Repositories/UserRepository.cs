@@ -17,4 +17,13 @@ public class UserRepository : Repository<User>, IUserRepository
             .Include(u => u.Profile)
             .FirstOrDefaultAsync(u => u.UserName == username);
     }
+
+    public async Task<User?> GetCompleteProfile(Guid id)
+    {
+
+        return await _dbSet
+                    .Include(u => u.Profile)
+                    .ThenInclude(u => u.Sports)
+                    .FirstOrDefaultAsync(u => u.Id == id);
+    }
 } 
