@@ -10,13 +10,13 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
-    public DbSet<PlayerProfile> PlayerProfiles { get; set; }
-    public DbSet<PlayerSports> PlayerSports { get; set; }
-    public DbSet<PlayerWorkoutPlan> PlayerWorkoutPlans { get; set; }
-    public DbSet<PlayerWorkoutPlanSchedule> PlayerWorkoutPlanSchedules { get; set; }
-    public DbSet<PlayerWorkout> PlayerWorkouts { get; set; }
-    public DbSet<PlayerWorkoutExercise> PlayerWorkoutExercises { get; set; }
-    public DbSet<PlayerWorkoutLog> PlayerWorkoutLogs { get; set; }
+    public DbSet<Profile> Profiles { get; set; }
+    public DbSet<Sports> Sports { get; set; }
+    public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
+    public DbSet<WorkoutPlanSchedule> WorkoutPlanSchedules { get; set; }
+    public DbSet<Workout> Workouts { get; set; }
+    public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
+    public DbSet<WorkoutLog> WorkoutLogs { get; set; }
     public DbSet<Exercise> Exercises { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,50 +28,50 @@ public class ApplicationDbContext : DbContext
             .HasIndex(u => u.UserName)
             .IsUnique();
 
-        // Configure PlayerProfile
-        modelBuilder.Entity<PlayerProfile>()
+        // Configure Profile
+        modelBuilder.Entity<Profile>()
             .HasOne(p => p.User)
-            .WithOne(u => u.PlayerProfile)
-            .HasForeignKey<PlayerProfile>(p => p.UserId)
+            .WithOne(u => u.Profile)
+            .HasForeignKey<Profile>(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure PlayerSports
-        modelBuilder.Entity<PlayerSports>()
-            .HasKey(ps => new { ps.PlayerProfileId, ps.Sport });
+        // Configure Sports
+        modelBuilder.Entity<Sports>()
+            .HasKey(ps => new { ps.ProfileId, ps.Sport });
 
-        // Configure PlayerWorkoutPlan
-        modelBuilder.Entity<PlayerWorkoutPlan>()
+        // Configure WorkoutPlan
+        modelBuilder.Entity<WorkoutPlan>()
             .HasOne(p => p.User)
-            .WithMany(u => u.PlayerWorkoutPlanSchedules)
+            .WithMany(u => u.WorkoutPlanSchedules)
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure PlayerWorkoutPlanSchedule
-        modelBuilder.Entity<PlayerWorkoutPlanSchedule>()
-            .HasOne(s => s.PlayerWorkoutPlan)
+        // Configure WorkoutPlanSchedule
+        modelBuilder.Entity<WorkoutPlanSchedule>()
+            .HasOne(s => s.WorkoutPlan)
             .WithMany(p => p.Schedules)
-            .HasForeignKey(s => s.PlayerWorkoutPlanId)
+            .HasForeignKey(s => s.WorkoutPlanId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure PlayerWorkout
-        modelBuilder.Entity<PlayerWorkout>()
-            .HasOne(w => w.PlayerWorkoutPlanSchedule)
-            .WithOne(s => s.PlayerWorkout)
-            .HasForeignKey<PlayerWorkout>(w => w.PlayerWorkoutPlanScheduleId)
+        // Configure Workout
+        modelBuilder.Entity<Workout>()
+            .HasOne(w => w.WorkoutPlanSchedule)
+            .WithOne(s => s.Workout)
+            .HasForeignKey<Workout>(w => w.WorkoutPlanScheduleId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure PlayerWorkoutExercise
-        modelBuilder.Entity<PlayerWorkoutExercise>()
-            .HasOne(e => e.PlayerWorkout)
+        // Configure WorkoutExercise
+        modelBuilder.Entity<WorkoutExercise>()
+            .HasOne(e => e.Workout)
             .WithMany(w => w.Exercises)
-            .HasForeignKey(e => e.PlayerWorkoutId)
+            .HasForeignKey(e => e.WorkoutId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Configure PlayerWorkoutLog
-        modelBuilder.Entity<PlayerWorkoutLog>()
-            .HasOne(l => l.PlayerWorkout)
+        // Configure WorkoutLog
+        modelBuilder.Entity<WorkoutLog>()
+            .HasOne(l => l.Workout)
             .WithOne(w => w.WorkoutLog)
-            .HasForeignKey<PlayerWorkoutLog>(l => l.PlayerWorkoutId)
+            .HasForeignKey<WorkoutLog>(l => l.WorkoutId)            
             .OnDelete(DeleteBehavior.Cascade);
     }
 } 
