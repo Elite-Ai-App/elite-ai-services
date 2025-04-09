@@ -21,10 +21,10 @@ builder.Services.AddSwaggerGen();
 // Add Supabase client
 var supabaseUrl = builder.Configuration["Supabase:Url"] ?? 
     throw new InvalidOperationException("Supabase URL is not configured. Please add 'Supabase:Url' to your configuration.");
-var supabaseKey = builder.Configuration["Supabase:Key"] ?? 
-    throw new InvalidOperationException("Supabase Key is not configured. Please add 'Supabase:Key' to your configuration.");
+var supabaseServiceRoleKey = builder.Configuration["Supabase:ServiceRoleKey"] ?? 
+    throw new InvalidOperationException("Supabase Anon Key is not configured. Please add 'Supabase:ServiceRoleKey' to your configuration.");
 
-builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseKey));
+builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseServiceRoleKey));
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
