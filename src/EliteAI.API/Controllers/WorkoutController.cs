@@ -19,7 +19,7 @@ public class WorkoutController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("/{id}")]
+    [HttpGet("{id}")]
     public IActionResult GetWorkout(string id)
     {
 
@@ -32,13 +32,13 @@ public class WorkoutController : ControllerBase
         return Ok();
     }
 
-    [HttpGet("/plan")]
+    [HttpGet("plan")]
     public IActionResult GetActivePlan()
     {
         return Ok();
     }
 
-    [HttpGet("/plan/{startDate}/{endDate}")]
+    [HttpGet("plan/{startDate}/{endDate}")]
     public IActionResult GetWorkoutsByDateRange(DateTime startDate, DateTime endDate)
     {
         return Ok();

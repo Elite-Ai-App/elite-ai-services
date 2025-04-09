@@ -14,6 +14,7 @@ public class OnboardingService
     private readonly IUserRepository _userRepository;
     private readonly IProfileRepository _profileRepository;
     private readonly ISportsRepository _sportsRepository;
+    private readonly IMessagePublisher _messagePublisher;
 
     /// <summary>
     /// Creates a new instance of OnboardingService.
@@ -21,14 +22,17 @@ public class OnboardingService
     /// <param name="userRepository">The repository for user operations.</param>
     /// <param name="profileRepository">The repository for profile operations.</param>
     /// <param name="sportsRepository">The repository for sports operations.</param>
+    /// <param name="messagePublisher">The message publisher for sending workout generation requests.</param>
     public OnboardingService(
         IUserRepository userRepository,
         IProfileRepository profileRepository,
-        ISportsRepository sportsRepository)
+        ISportsRepository sportsRepository,
+        IMessagePublisher messagePublisher)
     {
         _userRepository = userRepository;
         _profileRepository = profileRepository;
         _sportsRepository = sportsRepository;
+        _messagePublisher = messagePublisher;
     }
 
     /// <summary>
@@ -76,8 +80,8 @@ public class OnboardingService
             Goals = data.SportsGoals
         });
 
-        // TODO: Send message to RabbitMQ to generate workout plan
-        // This will be implemented when we set up the message queue
+        // Send message to RabbitMQ to generate workout plan
+        await _messagePublisher.PublishWorkoutGenerationRequest(userId.ToString());
 
         return (user, profile, sports);
     }

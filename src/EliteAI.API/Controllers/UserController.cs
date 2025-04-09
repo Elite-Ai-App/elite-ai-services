@@ -24,13 +24,12 @@ public class UserController : ControllerBase
         _userService = userService;
     }
 
-    [HttpGet("/me")]
+    [HttpGet("me")]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetUser()
     {
-
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
         {
@@ -42,15 +41,23 @@ public class UserController : ControllerBase
         return Ok(user);
     }
 
-    [HttpPost("/upload-profile-picture")]
+    [HttpPost("upload-profile-picture")]
     public IActionResult UploadProfilePicture(IFormFile file)
     {
         return Ok();
     }
 
-    [HttpPost("/update-username")]
-    public IActionResult UpdateUsername(string username)
+    [HttpPost("update-username")]
+    public async Task<IActionResult> UpdateUsername([FromBody] UpdateUsernameDto dto)
     {
-        return Ok();
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _userService.UpdateUsernameAsync(userId, dto.Username);
+
+        return Ok(user);
     }
 }

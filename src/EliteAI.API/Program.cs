@@ -5,16 +5,14 @@ using Microsoft.EntityFrameworkCore;
 using EliteAI.Infrastructure.Data;
 using EliteAI.Application.Interfaces;
 using EliteAI.Infrastructure.Repositories;
-using AutoMapper;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using EliteAI.Application.Services;
-using System.Net.Http.Json;
-using Microsoft.IdentityModel.JsonWebTokens;
+using EliteAI.API.Services;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -86,7 +84,6 @@ var supabaseJwtSecret = builder.Configuration["Supabase:JwtSecret"] ?? throw new
 
 builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseAnonKey));
 
-
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -117,9 +114,28 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register AutoMapper
 builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
-// Register repositories
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+// RabbitMQ Configuration
+builder.Services.AddSingleton<IConnection>(sp =>
+{
+    var factory = new ConnectionFactory
+    {
+        HostName = builder.Configuration["RabbitMQ:HostName"],
+        UserName = builder.Configuration["RabbitMQ:UserName"],
+        Password = builder.Configuration["RabbitMQ:Password"],
+        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
+        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/"
+    };
+    return factory.CreateConnectionAsync().Result;
+});
+
+// Register services
+builder.Services.AddScoped<EliteAI.Application.Interfaces.IMessagePublisher, RabbitMQMessagePublisher>();
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
+builder.Services.AddScoped<ISportsRepository, SportsRepository>();
+
+builder.Services.AddScoped<OnboardingService>();
 builder.Services.AddScoped<UserService>();
 
 // Add logging

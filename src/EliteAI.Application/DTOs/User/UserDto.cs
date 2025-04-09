@@ -68,3 +68,12 @@ public class UpdateUserDto
     [Url]
     public string? ProfilePictureUrl { get; set; }
 } 
+
+
+public class UpdateUsernameDto
+{
+    [Required]
+    [StringLength(50)]
+    public string Username { get; set; } = string.Empty;
+}
+
