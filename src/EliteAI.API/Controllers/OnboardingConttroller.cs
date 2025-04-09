@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MyApi.API.Controllers;
+namespace EliteAI.API.Controllers;
 
 /// <summary>
 /// Example secured controller for weather data.
@@ -19,18 +19,15 @@ public class OnBoardingController : ControllerBase
     }
 
     [HttpPost]
-    public IActionResult GetOnBoarding()
+    public IActionResult CompleteOnBoarding(CompleteOnBoardingDto completeOnBoardingDto)
     {
-        // Simulated data - normally call a service layer here
-        var weatherData = new
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userId == null)
         {
-            Date = DateTime.UtcNow,
-            TemperatureC = 18,
-            Summary = "Cloudy"
-        };
+            return Unauthorized();
+        }
 
-        _logger.LogInformation("Weather retrieved for {Date}", weatherData.Date);
-
-        return Ok(weatherData);
+        return Ok();
     }
 }
