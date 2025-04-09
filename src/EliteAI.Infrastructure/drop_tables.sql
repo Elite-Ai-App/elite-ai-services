@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS public.workout_logs CASCADE;
+DROP TABLE IF EXISTS public.workout_exercises CASCADE;
+DROP TABLE IF EXISTS public.workouts CASCADE;
+DROP TABLE IF EXISTS public.workout_plan_schedules CASCADE;
+DROP TABLE IF EXISTS public.workout_plans CASCADE;
+DROP TABLE IF EXISTS public.sports CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.exercises CASCADE;
+DROP TABLE IF EXISTS public.__EFMigrationsHistory CASCADE; 

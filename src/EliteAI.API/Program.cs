@@ -11,8 +11,12 @@ using System.Text;
 using EliteAI.Application.Services;
 using EliteAI.API.Services;
 using RabbitMQ.Client;
+using dotenv.net;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Load environment variables
+DotEnv.Load();
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -75,27 +79,25 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Add Supabase client
-var supabaseUrl = builder.Configuration["Supabase:Url"] ?? 
-    throw new InvalidOperationException("Supabase URL is not configured. Please add 'Supabase:Url' to your configuration.");
-var supabaseAnonKey = builder.Configuration["Supabase:AnonKey"] ?? 
-    throw new InvalidOperationException("Supabase Anon Key is not configured. Please add 'Supabase:AnonKey' to your configuration.");
-
-var supabaseJwtSecret = builder.Configuration["Supabase:JwtSecret"] ?? throw new InvalidOperationException("Supabase JWT Secret is not configured. Please add 'Supabase:JwtScret' to your configuration.");
+var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ??
+    throw new InvalidOperationException("SUPABASE_URL is not configured. Please add it to your .env file.");
+var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ??
+    throw new InvalidOperationException("SUPABASE_ANON_KEY is not configured. Please add it to your .env file.");
+var supabaseJwtSecret = Environment.GetEnvironmentVariable("SUPABASE_JWT_SECRET") ??
+    throw new InvalidOperationException("SUPABASE_JWT_SECRET is not configured. Please add it to your .env file.");
 
 builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseAnonKey));
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
-    {       
+    {
         options.TokenValidationParameters = new TokenValidationParameters
-        { 
-    
+        {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("Qofhpe8/4N1l8q5U1eu28U/qkwPLNyOgYgL0QdLO/ttdWz+49SrYjm7Z9nu2+TD85TmAqPzmbFbheFlkpkOAmw==")),
-            ValidIssuer = "https://sddwxswbsezboorhimuf.supabase.co/auth/v1",            
-            ValidAudience = "authenticated",        
-   
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(supabaseJwtSecret)),
+            ValidIssuer = $"{supabaseUrl}/auth/v1",
+            ValidAudience = "authenticated",
         };
         options.Events = new JwtBearerEvents
         {
@@ -108,22 +110,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Configure Entity Framework
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT");
+var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require;Trust Server Certificate=true";
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseNpgsql(connectionString, options =>
+    {
+        options.EnableRetryOnFailure(
+            maxRetryCount: 3,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorCodesToAdd: null);
+        options.CommandTimeout(60);
+        options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+    });
+    options.EnableDetailedErrors();
+    options.EnableSensitiveDataLogging();
+    options.LogTo(Console.WriteLine, LogLevel.Information);
+});
 
 // Register AutoMapper
 builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
 
 // RabbitMQ Configuration
+var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
+var rabbitMqPassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD");
+
 builder.Services.AddSingleton<IConnection>(sp =>
 {
     var factory = new ConnectionFactory
     {
-        HostName = builder.Configuration["RabbitMQ:HostName"],
-        UserName = builder.Configuration["RabbitMQ:UserName"],
-        Password = builder.Configuration["RabbitMQ:Password"],
-        Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
-        VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/"
+        Uri = new Uri(rabbitMqUrl ?? throw new InvalidOperationException("RABBITMQ_URL is not configured")),
+        Password = rabbitMqPassword ?? throw new InvalidOperationException("RABBITMQ_PASSWORD is not configured")
     };
     return factory.CreateConnectionAsync().Result;
 });
@@ -131,12 +154,16 @@ builder.Services.AddSingleton<IConnection>(sp =>
 // Register services
 builder.Services.AddScoped<EliteAI.Application.Interfaces.IMessagePublisher, RabbitMQMessagePublisher>();
 
+//Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 builder.Services.AddScoped<ISportsRepository, SportsRepository>();
 
+//Services
 builder.Services.AddScoped<OnboardingService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<ProfileService>();
+builder.Services.AddScoped<SportsService>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -146,20 +173,12 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "EliteAI API V1");
-        c.RoutePrefix = "swagger";
-    });
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
-
-// Enable CORS
-app.UseCors();
-
-// Authentication & Authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
