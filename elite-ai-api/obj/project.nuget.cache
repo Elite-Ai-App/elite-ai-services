@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "BlY83A9JskQ=",
+  "success": true,
+  "projectFilePath": "D:\\Websites\\elite-ai-api-dotn\\elite-ai-api\\elite-ai-api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Stewa\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.3\\microsoft.aspnetcore.openapi.9.0.3.nupkg.sha512",
+    "C:\\Users\\Stewa\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512"
+  ],
+  "logs": []
+}
