@@ -10,8 +10,20 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; }
+
     public DbSet<Profile> PlayerProfiles { get; set; }
+
     public DbSet<Sports> PlayerSports { get; set; }
+
+    public DbSet<WorkoutPlan> WorkoutPlans { get; set; }
+
+    public DbSet<WorkoutPlanSchedule> WorkoutSchedules { get; set; }
+
+    public DbSet<Workout> Workouts { get; set; }
+
+    public DbSet<WorkoutExercise> WorkoutExercises { get; set; }
+
+    public DbSet<Exercise> Exercises { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,5 +80,8 @@ public class ApplicationDbContext : DbContext
             .WithOne(w => w.WorkoutLog)
             .HasForeignKey<WorkoutLog>(l => l.WorkoutId)            
             .OnDelete(DeleteBehavior.Cascade);
+
+
+        
     }
 } 
