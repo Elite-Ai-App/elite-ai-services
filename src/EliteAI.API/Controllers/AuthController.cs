@@ -26,7 +26,7 @@ public class AuthController : ControllerBase
         try
         {
             var session = await _supabaseClient.Auth.SignIn(request.Email, request.Password);
-            return Ok(new { Token = session.AccessToken });
+            return Ok(new { Token = session?.AccessToken });
         }
         catch (Exception ex)
         {

@@ -19,18 +19,25 @@ public class Program
         // Configuration
         builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
+
+        var queueHostname = builder.Configuration["RabbitMQ:HostName"] ?? throw new Exception("No hostname Provided");
+
+        var queueUsername = builder.Configuration["RabbitMQ:UserName"] ?? throw new Exception("No username Provided");
+
+        var queuePassword = builder.Configuration["RabbitMQ:Password"] ?? throw new Exception("No Password Provided");
+
         // RabbitMQ Connection
         builder.Services.AddSingleton<IConnection>(sp =>
         {
             var factory = new ConnectionFactory
             {
-                HostName = builder.Configuration["RabbitMQ:HostName"],
-                UserName = builder.Configuration["RabbitMQ:UserName"],
-                Password = builder.Configuration["RabbitMQ:Password"],
+                HostName = queueHostname,
+                UserName = queueUsername,
+                Password = queuePassword,
                 Port = int.Parse(builder.Configuration["RabbitMQ:Port"] ?? "5672"),
                 VirtualHost = builder.Configuration["RabbitMQ:VirtualHost"] ?? "/"
             };
-            return await factory.CreateConnectionAsync();
+            return factory.CreateConnectionAsync().Result;
         });
 
         // Health Checks
@@ -62,18 +69,19 @@ public class Program
 
         app.UseRouting();
 
-        app.UseEndpoints(endpoints =>
+        // Replace UseEndpoints with top-level route registrations
+        app.MapControllers();
+        
+        app.MapHealthChecks("/health");
+        
+        app.MapHealthChecks("/health/live", new HealthCheckOptions
         {
-            endpoints.MapControllers();
-            endpoints.MapHealthChecks("/health");
-            endpoints.MapHealthChecks("/health/live", new HealthCheckOptions
-            {
-                Predicate = _ => false
-            });
-            endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
-            {
-                Predicate = check => check.Tags.Contains("messagebroker") || check.Tags.Contains("database")
-            });
+            Predicate = _ => false
+        });
+        
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("messagebroker") || check.Tags.Contains("database")
         });
 
         app.Run();
