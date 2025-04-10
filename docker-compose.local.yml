@@ -28,6 +28,26 @@ services:
     networks:
       - elite-ai-network
 
+  workout-generator:
+    build:
+      context: .
+      dockerfile: src/EliteAI.WorkoutGenerator/Dockerfile
+    image: elite-ai-workout-generator:local
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - RABBITMQ_URL=amqp://elite_ai:xke.FMF6gfc9ung3eqm@rabbitmq:5672
+      - RABBITMQ_PASSWORD=xke.FMF6gfc9ung3eqm
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - rabbitmq
+    networks:
+      - elite-ai-network
+
   rabbitmq:
     image: rabbitmq:3-management
     environment:
