@@ -8,11 +8,11 @@ namespace EliteAI.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly Client _supabaseClient;
+ 
 
-    public AuthController(Client supabaseClient)
+    public AuthController()
     {
-        _supabaseClient = supabaseClient;
+   
     }
 
     /// <summary>
@@ -25,7 +25,13 @@ public class AuthController : ControllerBase
     {
         try
         {
-            var session = await _supabaseClient.Auth.SignIn(request.Email, request.Password);
+            var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
+            var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY");
+           
+
+           var supabaseClient = new Supabase.Client(supabaseUrl, supabaseAnonKey);
+
+            var session = await supabaseClient.Auth.SignIn(request.Email, request.Password);
             return Ok(new { Token = session?.AccessToken });
         }
         catch (Exception ex)

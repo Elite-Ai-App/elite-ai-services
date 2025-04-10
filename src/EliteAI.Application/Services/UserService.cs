@@ -4,6 +4,8 @@ using EliteAI.Application.DTOs.User;
 using EliteAI.Application.Interfaces;
 using EliteAI.Domain.Entities;
 using EliteAI.Domain.Enums;
+using Microsoft.AspNetCore.Http;
+using Supabase.Storage;
 
 namespace EliteAI.Application.Services;
 
@@ -13,14 +15,17 @@ namespace EliteAI.Application.Services;
 public class UserService
 {
     private readonly IUserRepository _userRepository;
+    private readonly Supabase.Client _client;
+
 
     /// <summary>
     /// Creates a new instance of UserService.
     /// </summary>
     /// <param name="userRepository">The repository for user operations.</param>
-    public UserService(IUserRepository userRepository)
+    public UserService(IUserRepository userRepository, Supabase.Client client)
     {
         _userRepository = userRepository;
+        _client = client;
     }
 
     /// <summary>
@@ -35,7 +40,7 @@ public class UserService
         {
             throw new KeyNotFoundException($"User with ID {id} not found.");
         }
-        
+
         var sport = user.Profile?.Sports?.FirstOrDefault();
 
 
@@ -50,7 +55,7 @@ public class UserService
             OnboardingComplete = user.OnboardingComplete,
             Profile = user.Profile != null ? new ProfileDto
             {
-                Id = user.Profile.Id,              
+                Id = user.Profile.Id,
                 Height = user.Profile.Height,
                 Weight = user.Profile.Weight,
                 AgeGroup = user.Profile.AgeGroup,
@@ -60,12 +65,12 @@ public class UserService
                 GymExperience = user.Profile.GymExperience,
                 Injured = user.Profile.Injured,
                 Injuries = user.Profile.Injuries,
-                TrainingFrequency = user.Profile.TrainingFrequency,               
-              
+                TrainingFrequency = user.Profile.TrainingFrequency,
+
             } : null,
             SportsDto = sport != null ? new SportsDto
             {
-                Id = sport.Id,               
+                Id = sport.Id,
                 Sport = sport.Sport,
                 SeasonStart = sport.SeasonStart,
                 SeasonEnd = sport.SeasonEnd,
@@ -133,7 +138,26 @@ public class UserService
 
         return user;
     }
-      
+
+
+    public async Task<string?> UpdateProfilePicture(Guid id, IFormFile file)
+    {
+        var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
+
+        var filePath = $"{id}/{Guid.NewGuid()}/{fileName}";
+
+        using var ms = new MemoryStream();
+
+        await file.CopyToAsync(ms);
+
+        var bytes = ms.ToArray();
+
+        var bucket = _client.Storage.From("profile-pictures");
+
+        var result = await bucket.Upload(bytes, filePath, new Supabase.Storage.FileOptions { CacheControl = "3600", Upsert = false });
+       
+        return result is not null ? bucket.GetPublicUrl(result) : throw new Exception("Upload failed");
+    }
 
     private string CleanUsername(string username)
     {
@@ -205,4 +229,4 @@ public class UserService
         var existingUser = await GetUserByUsernameAsync(username);
         return existingUser == null;
     }
-} 
+}

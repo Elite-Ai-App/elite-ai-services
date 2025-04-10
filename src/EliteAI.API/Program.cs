@@ -94,6 +94,25 @@ try
         });
     });
 
+
+
+
+    // Configure JWT Authentication
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = Environment.GetEnvironmentVariable("SUPABASE_JWT_ISSUER"),
+                ValidAudience = builder.Configuration["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("SUPABASE_JWT_SECRET")))
+            };
+        });
+
     // Configure Entity Framework
     SentrySdk.CaptureMessage("Configuring Database", SentryLevel.Info);
     var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
@@ -152,8 +171,27 @@ try
     builder.Services.AddScoped<ProfileService>();
     builder.Services.AddScoped<SportsService>();
 
-    // Add logging
-    builder.Services.AddLogging();
+    SentrySdk.CaptureMessage("Seeting up Supabase", SentryLevel.Info);
+    var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL");
+    var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY");
+    var supabaseAdminKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY");
+
+  
+
+    var options = new SupabaseOptions
+    {
+        AutoRefreshToken = true,
+        AutoConnectRealtime = true,
+        
+        // SessionHandler = new SupabaseSessionHandler() <-- This must be implemented by the developer
+    };
+
+    // Note the creation as a singleton.
+    builder.Services.AddSingleton(provider => new Supabase.Client(supabaseUrl, supabaseAdminKey));
+
+
+// Add logging
+builder.Services.AddLogging();
 
     var app = builder.Build();
 

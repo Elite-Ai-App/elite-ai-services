@@ -51,38 +51,76 @@ public class OnboardingService
             OnboardingComplete = true
         });
 
-        // Create or update player profile
-        var profile = await _profileRepository.CreateAsync(new Profile
-        {
-            UserId = userId,
-            Height = data.Height,
-            Weight = data.Weight,
-            Gender = data.Gender,
-            AgeGroup = data.AgeGroup,
-            GymExperience = data.GymExperience,
-            GymAccess = data.GymAccess,
-            AvailableEquipment = data.AvailableEquipment,
-            UnitType = data.UnitType,
-            Injured = data.Injured,
-            Injuries = data.Injuries,
-            TrainingFrequency = data.TrainingFrequency
-        });
+        // 2. Create or update Profile
+        var existingProfile = await _profileRepository.GetByUserIdAsync(userId);
 
-        // Create player sports record
-        var sports = await _sportsRepository.CreateAsync(new Sports
+        Profile profile;
+        if (existingProfile != null)
         {
-            ProfileId = profile.Id,
-            Sport = Sport.BASKETBALL,
-            SeasonStart = data.SeasonStart,
-            SeasonEnd = data.SeasonEnd,
-            SportLevel = data.SportLevel,
-            Position = data.Position,
-            Goals = data.SportsGoals
-        });
+            existingProfile.Height = data.Height;
+            existingProfile.Weight = data.Weight;
+            existingProfile.Gender = data.Gender;
+            existingProfile.AgeGroup = data.AgeGroup;
+            existingProfile.GymExperience = data.GymExperience;
+            existingProfile.GymAccess = data.GymAccess;
+            existingProfile.AvailableEquipment = data.AvailableEquipment;
+            existingProfile.UnitType = data.UnitType;
+            existingProfile.Injured = data.Injured;
+            existingProfile.Injuries = data.Injuries;
+            existingProfile.TrainingFrequency = data.TrainingFrequency;
+
+            profile = await _profileRepository.UpdateAsync(existingProfile);
+        }
+        else
+        {
+            profile = await _profileRepository.CreateAsync(new Profile
+            {
+                UserId = userId,
+                Height = data.Height,
+                Weight = data.Weight,
+                Gender = data.Gender,
+                AgeGroup = data.AgeGroup,
+                GymExperience = data.GymExperience,
+                GymAccess = data.GymAccess,
+                AvailableEquipment = data.AvailableEquipment,
+                UnitType = data.UnitType,
+                Injured = data.Injured,
+                Injuries = data.Injuries,
+                TrainingFrequency = data.TrainingFrequency
+            });
+        }
+
+        // 3. Create or update Sports
+        var existingSports = await _sportsRepository.GetByProfileIDAndSportAsync(profile.Id, Sport.BASKETBALL);
+
+        if (existingSports != null)
+        {
+            existingSports.Sport = Sport.BASKETBALL;
+            existingSports.SeasonStart = data.SeasonStart;
+            existingSports.SeasonEnd = data.SeasonEnd;
+            existingSports.SportLevel = data.SportLevel;
+            existingSports.Position = data.Position;
+            existingSports.Goals = data.SportsGoals;
+
+            await _sportsRepository.UpdateAsync(existingSports);
+        }
+        else
+        {
+            await _sportsRepository.CreateAsync(new Sports
+            {
+                Profile = profile,
+                Sport = Sport.BASKETBALL,
+                SeasonStart = data.SeasonStart,
+                SeasonEnd = data.SeasonEnd,
+                SportLevel = data.SportLevel,
+                Position = data.Position,
+                Goals = data.SportsGoals
+            });
+        }
 
         // Send message to RabbitMQ to generate workout plan
         await _messagePublisher.PublishWorkoutGenerationRequest(userId.ToString());
 
-        return (user, profile, sports);
+        return (user, profile, existingSports);
     }
 }

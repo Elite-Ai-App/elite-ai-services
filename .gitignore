@@ -117,3 +117,4 @@ pids
 *.pid
 *.seed
 *.pid.lock
+.fake

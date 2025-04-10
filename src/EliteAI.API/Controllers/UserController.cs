@@ -42,9 +42,33 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("upload-profile-picture")]
-    public IActionResult UploadProfilePicture(IFormFile file)
+    public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
-        return Ok();
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        if (file == null || file.Length == 0)
+            return BadRequest("No file uploaded.");
+
+        // Optional: Validate file size (e.g., max 5MB)
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest("File size exceeds limit.");
+
+        // Optional: Validate file type
+        var allowedExtensions = new[] { ".jpg", ".png", ".pdf", ".txt" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest("Unsupported file type.");
+
+
+        var publicUrl = await _userService.UpdateProfilePicture(userId, file);
+
+
+        return Ok(publicUrl);
     }
 
     [HttpPost("update-username")]
