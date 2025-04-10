@@ -112,6 +112,11 @@ oldCode/
 .env.production
 .env.vault
 
+# Application settings
+appsettings.*.json
+!appsettings.json
+!appsettings.Example.json
+
 # Runtime data
 pids
 *.pid
