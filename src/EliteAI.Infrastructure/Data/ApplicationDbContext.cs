@@ -26,14 +26,14 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Exercise> Exercises { get; set; }
 
-    
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasDefaultSchema("public");
 
         // Configure User
-        modelBuilder.Entity<User>()           
+        modelBuilder.Entity<User>()
             .HasIndex(u => u.Id)
             .IsUnique();
 
@@ -46,7 +46,10 @@ public class ApplicationDbContext : DbContext
 
         // Configure Sports
         modelBuilder.Entity<Sports>()
-            .HasKey(ps => new { ps.ProfileId, ps.Sport });
+            .HasOne(s => s.Profile)
+            .WithMany(p => p.Sports)
+            .HasForeignKey(s => s.ProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Configure WorkoutPlan
         modelBuilder.Entity<WorkoutPlan>()
@@ -80,7 +83,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<WorkoutLog>()
             .HasOne(l => l.Workout)
             .WithOne(w => w.WorkoutLog)
-            .HasForeignKey<WorkoutLog>(l => l.WorkoutId)            
+            .HasForeignKey<WorkoutLog>(l => l.WorkoutId)
             .OnDelete(DeleteBehavior.Cascade);
     }
-} 
+}

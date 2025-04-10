@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Threading.Tasks;
+using EliteAI.Application.Api;
 using EliteAI.Application.DTOs.Onboarding;
 using EliteAI.Application.Services;
 using EliteAI.Domain.Entities;
@@ -26,6 +27,8 @@ public class OnBoardingController : ControllerBase
     }
 
     [HttpPost("complete")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CompleteOnboarding([FromBody] CompleteOnboardingDTO data)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -34,8 +37,8 @@ public class OnBoardingController : ControllerBase
             return Unauthorized();
         }
 
-        var (user, profile, sports) = await _onboardingService.CompleteOnboardingAsync(userId, data);
+         await _onboardingService.CompleteOnboardingAsync(userId, data);
 
-        return Ok(new { user, profile, sports });
+        return Ok(new ApiResponse<object>{ Success = true, Message = "Onboarding Complete, Workout Generationg Inprogress" }); ;
     }
 }

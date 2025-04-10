@@ -14,7 +14,13 @@ public class SportsRepository : Repository<Sports>, ISportsRepository
 
     public async Task<IEnumerable<Sports>> GetByProfileIdAsync(Guid profileId)
     {
-        return await _dbSet.Where(s => s.ProfileId == profileId).ToListAsync();
+        return await _dbSet.Where(s => s.Profile.Id == profileId).ToListAsync();
+    }
+
+    public async Task<Sports?> GetByProfileIDAndSportAsync(Guid profileId, Sport sport)
+    {
+        return await _dbSet.FirstOrDefaultAsync(s => s.Profile.Id == profileId & s.Sport.Equals(sport));
+
     }
 
     public async Task<Sports> UpdateSportLevelAsync(Guid id, SportLevel sportLevel)

@@ -6,6 +6,7 @@ using EliteAI.Domain.Entities;
 using EliteAI.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 using Supabase.Storage;
+using AutoMapper;
 
 namespace EliteAI.Application.Services;
 
@@ -16,16 +17,17 @@ public class UserService
 {
     private readonly IUserRepository _userRepository;
     private readonly Supabase.Client _client;
-
+    private readonly IMapper _mapper;
 
     /// <summary>
     /// Creates a new instance of UserService.
     /// </summary>
     /// <param name="userRepository">The repository for user operations.</param>
-    public UserService(IUserRepository userRepository, Supabase.Client client)
+    public UserService(IUserRepository userRepository, Supabase.Client client, IMapper mapper)
     {
         _userRepository = userRepository;
         _client = client;
+        _mapper = mapper;
     }
 
     /// <summary>
@@ -41,46 +43,7 @@ public class UserService
             throw new KeyNotFoundException($"User with ID {id} not found.");
         }
 
-        var sport = user.Profile?.Sports?.FirstOrDefault();
-
-
-        var userDto = new UserDto
-        {
-            Id = user.Id,
-            FirstName = user.FirstName ?? string.Empty,
-            LastName = user.LastName ?? string.Empty,
-            UserName = user.UserName ?? string.Empty,
-            UnitType = user.UnitType,
-            ProfilePictureUrl = user.ProfilePictureUrl,
-            OnboardingComplete = user.OnboardingComplete,
-            Profile = user.Profile != null ? new ProfileDto
-            {
-                Id = user.Profile.Id,
-                Height = user.Profile.Height,
-                Weight = user.Profile.Weight,
-                AgeGroup = user.Profile.AgeGroup,
-                Gender = user.Profile.Gender,
-                AvailableEquipment = user.Profile.AvailableEquipment,
-                GymAccess = user.Profile.GymAccess,
-                GymExperience = user.Profile.GymExperience,
-                Injured = user.Profile.Injured,
-                Injuries = user.Profile.Injuries,
-                TrainingFrequency = user.Profile.TrainingFrequency,
-
-            } : null,
-            SportsDto = sport != null ? new SportsDto
-            {
-                Id = sport.Id,
-                Sport = sport.Sport,
-                SeasonStart = sport.SeasonStart,
-                SeasonEnd = sport.SeasonEnd,
-                Position = sport.Position,
-                SportLevel = sport.SportLevel,
-                Goals = sport.Goals
-            } : null
-        };
-
-        return userDto;
+        return _mapper.Map<UserDto>(user);
     }
 
     /// <summary>
@@ -142,9 +105,14 @@ public class UserService
 
     public async Task<string?> UpdateProfilePicture(Guid id, IFormFile file)
     {
+
+        var user = await _userRepository.GetByIdAsync(id);
+
+        if (user is null) throw new Exception("No user found");
+
         var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
 
-        var filePath = $"{id}/{Guid.NewGuid()}/{fileName}";
+        var filePath = $"{user.Id}/{Guid.NewGuid()}/{fileName}";
 
         using var ms = new MemoryStream();
 
@@ -155,8 +123,15 @@ public class UserService
         var bucket = _client.Storage.From("profile-pictures");
 
         var result = await bucket.Upload(bytes, filePath, new Supabase.Storage.FileOptions { CacheControl = "3600", Upsert = false });
-       
-        return result is not null ? bucket.GetPublicUrl(result) : throw new Exception("Upload failed");
+
+        var publicUrl = bucket.GetPublicUrl(result);
+
+        user.ProfilePictureUrl = publicUrl;
+
+
+        await _userRepository.UpdateAsync(user);
+
+        return result is not null ? publicUrl : throw new Exception("Upload failed");
     }
 
     private string CleanUsername(string username)

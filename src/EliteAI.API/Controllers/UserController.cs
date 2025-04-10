@@ -42,6 +42,8 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("upload-profile-picture")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]   
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadProfilePicture(IFormFile file)
     {
 

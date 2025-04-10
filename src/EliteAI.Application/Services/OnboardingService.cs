@@ -41,7 +41,7 @@ public class OnboardingService
     /// <param name="userId">The unique identifier of the user.</param>
     /// <param name="data">The onboarding data.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the updated user, profile, and sports information.</returns>
-    public async Task<(User User, Profile Profile, Sports Sports)> CompleteOnboardingAsync(Guid userId, CompleteOnboardingDTO data)
+    public async Task CompleteOnboardingAsync(Guid userId, CompleteOnboardingDTO data)
     {
         // Update user
         var user = await _userRepository.UpdateAsync(new User
@@ -120,7 +120,6 @@ public class OnboardingService
 
         // Send message to RabbitMQ to generate workout plan
         await _messagePublisher.PublishWorkoutGenerationRequest(userId.ToString());
-
-        return (user, profile, existingSports);
+       
     }
 }

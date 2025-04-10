@@ -141,7 +141,7 @@ try
     });
 
     // Register AutoMapper
-    builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
+    builder.Services.AddAutoMapper(typeof(EliteAI.Application.Mapping.UserMappingProfile).Assembly);
 
     // RabbitMQ Configuration
     var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
@@ -176,13 +176,13 @@ try
     var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY");
     var supabaseAdminKey = Environment.GetEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY");
 
-  
+
 
     var options = new SupabaseOptions
     {
         AutoRefreshToken = true,
         AutoConnectRealtime = true,
-        
+
         // SessionHandler = new SupabaseSessionHandler() <-- This must be implemented by the developer
     };
 
@@ -190,8 +190,8 @@ try
     builder.Services.AddSingleton(provider => new Supabase.Client(supabaseUrl, supabaseAdminKey));
 
 
-// Add logging
-builder.Services.AddLogging();
+    // Add logging
+    builder.Services.AddLogging();
 
     var app = builder.Build();
 
