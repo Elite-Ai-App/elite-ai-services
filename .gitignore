@@ -69,6 +69,7 @@ Migrations/
 secrets.json
 
 # Docker
+.docker/
 docker-compose.override.yml
 .env
 
@@ -110,3 +111,9 @@ oldCode/
 .flaskenv*
 !.env.project
 !.env.vault
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
