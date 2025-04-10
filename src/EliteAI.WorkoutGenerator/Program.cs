@@ -6,6 +6,8 @@ using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using dotenv.net;
 using System;
+using System.IO;
+using System.Threading;
 
 namespace EliteAI.WorkoutGenerator;
 
@@ -15,11 +17,21 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        // Load .env file
-        DotEnv.Load(options: new DotEnvOptions(
-            envFilePaths: new[] { ".env" },
-            ignoreExceptions: false
-        ));
+        // Load environment variables from .env file
+        var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+        Console.WriteLine($"Looking for .env file at: {envPath}");
+        if (File.Exists(envPath))
+        {
+            Console.WriteLine(".env file found");
+            DotEnv.Load(new DotEnvOptions(
+                envFilePaths: new[] { envPath },
+                ignoreExceptions: false
+            ));
+        }
+        else
+        {
+            Console.WriteLine(".env file not found!");
+        }
 
         // Add services to the container.
         builder.Services.AddControllers();
@@ -27,47 +39,71 @@ public class Program
         // Configuration
         builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
-        // Parse RabbitMQ URL
+        // RabbitMQ Configuration
         var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
+        Console.WriteLine($"Initial RabbitMQ URL: {rabbitMqUrl}");
+
         if (string.IsNullOrEmpty(rabbitMqUrl))
-            throw new Exception("RABBITMQ_URL is not configured");
+        {
+            var username = Environment.GetEnvironmentVariable("RABBITMQ_USERNAME") ?? "elite_ai";
+            var password = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD") ?? "elite_ai_password";
+            var host = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "rabbitmq";
+            var port = Environment.GetEnvironmentVariable("RABBITMQ_PORT") ?? "5672";
+            rabbitMqUrl = $"amqp://{username}:{password}@{host}:{port}";
+            Console.WriteLine($"Constructed RabbitMQ URL: {rabbitMqUrl}");
+        }
 
-        var uri = new Uri(rabbitMqUrl);
-        var queueHostname = uri.Host;
-        var queuePort = uri.Port;
-
-        var queueUsername = Environment.GetEnvironmentVariable("RABBITMQ_USERNAME")
-            ?? throw new Exception("No username provided");
-
-        var queuePassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD")
-            ?? throw new Exception("No password provided");
+        Uri uri;
+        try
+        {
+            uri = new Uri(rabbitMqUrl);
+            Console.WriteLine($"Successfully parsed URI - Host: {uri.Host}, Port: {uri.Port}, UserInfo: {uri.UserInfo}");
+        }
+        catch (UriFormatException ex)
+        {
+            Console.WriteLine($"Failed to parse RabbitMQ URL: {ex.Message}");
+            Console.WriteLine($"Attempted URL format: {rabbitMqUrl}");
+            throw;
+        }
 
         // RabbitMQ Connection
         builder.Services.AddSingleton<IConnection>(sp =>
         {
             var factory = new ConnectionFactory
             {
-                HostName = queueHostname,
-                Port = queuePort,
-                UserName = queueUsername,
-                Password = queuePassword,
-                VirtualHost = Environment.GetEnvironmentVariable("RABBITMQ_VHOST") ?? "/",
+
+                Uri = uri,
                 AutomaticRecoveryEnabled = true,
                 NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
             };
 
-            try
+            var maxRetries = 5;
+            var retryCount = 0;
+            var delay = TimeSpan.FromSeconds(5);
+
+            while (retryCount < maxRetries)
             {
-                Console.WriteLine($"Connecting to RabbitMQ at {queueHostname}:{queuePort}");
-                var connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-                Console.WriteLine("Successfully connected to RabbitMQ");
-                return connection;
+                try
+                {
+                    Console.WriteLine($"Attempting to connect to RabbitMQ at {uri.Host}:{uri.Port} (Attempt {retryCount + 1}/{maxRetries})");
+                    var connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
+                    Console.WriteLine("Successfully connected to RabbitMQ");
+                    return connection;
+                }
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    if (retryCount == maxRetries)
+                    {
+                        Console.WriteLine($"Failed to connect to RabbitMQ after {maxRetries} attempts: {ex.Message}");
+                        throw;
+                    }
+                    Console.WriteLine($"Connection attempt {retryCount} failed: {ex.Message}. Retrying in {delay.TotalSeconds} seconds...");
+                    Thread.Sleep(delay);
+                }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to connect to RabbitMQ: {ex.Message}");
-                throw;
-            }
+
+            throw new Exception("Failed to establish RabbitMQ connection after all retry attempts");
         });
 
         // Health Checks

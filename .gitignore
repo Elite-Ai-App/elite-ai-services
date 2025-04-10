@@ -104,13 +104,8 @@ oldCode/
 
 # Environment files
 .env
-.env.*
-!.env.example
-
-.env*
-.flaskenv*
-!.env.project
-!.env.vault
+.env.local
+.env.*.local
 
 # Runtime data
 pids
