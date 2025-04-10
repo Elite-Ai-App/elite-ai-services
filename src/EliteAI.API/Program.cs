@@ -16,8 +16,28 @@ using Sentry;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load environment variables
-DotEnv.Load();
+// Configure URLs
+builder.WebHost.UseUrls("http://*:80");
+
+// Load environment variables from .env file
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+Console.WriteLine($"Looking for .env file at: {envPath}");
+if (File.Exists(envPath))
+{
+    Console.WriteLine(".env file found");
+    DotEnv.Load(new DotEnvOptions(
+        envFilePaths: new[] { envPath },
+        ignoreExceptions: false
+    ));
+}
+else
+{
+    Console.WriteLine(".env file not found!");
+}
+
+
+
+
 
 // Configure Sentry first
 builder.WebHost.UseSentry(options =>
@@ -145,16 +165,17 @@ try
 
     // RabbitMQ Configuration
     var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
-    var rabbitMqPassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD");
+
 
     builder.Services.AddSingleton<IConnection>(sp =>
     {
         var factory = new ConnectionFactory
         {
             Uri = new Uri(rabbitMqUrl ?? throw new InvalidOperationException("RABBITMQ_URL is not configured")),
-            Password = rabbitMqPassword ?? throw new InvalidOperationException("RABBITMQ_PASSWORD is not configured")
+            AutomaticRecoveryEnabled = true,
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
         };
-        return factory.CreateConnectionAsync().Result;
+        return factory.CreateConnectionAsync().GetAwaiter().GetResult();
     });
 
     // Register services
