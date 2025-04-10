@@ -51,12 +51,11 @@ builder.Services.AddSwaggerGen(c =>
     // Add JWT Authentication
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT"
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -68,14 +67,23 @@ builder.Services.AddSwaggerGen(c =>
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
-                },
-                Scheme = "Bearer",
-                Name = "Authorization",
-                In = ParameterLocation.Header
+                }
             },
             Array.Empty<string>()
         }
     });
+});
+
+// Configure Sentry
+builder.WebHost.UseSentry(options =>
+{
+    options.Dsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
+    options.Debug = builder.Environment.IsDevelopment();
+    options.TracesSampleRate = 1.0;   
+    options.MaxBreadcrumbs = 200;
+    options.AttachStacktrace = true;
+    options.ShutdownTimeout = TimeSpan.FromSeconds(5);
+    options.Environment = builder.Environment.EnvironmentName;
 });
 
 // Add Supabase client
@@ -94,18 +102,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(supabaseJwtSecret)),
-            ValidIssuer = $"{supabaseUrl}/auth/v1",
-            ValidAudience = "authenticated",
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine("JWT Error: " + context.Exception.Message);
-                return Task.CompletedTask;
-            }
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
         };
     });
 
@@ -182,6 +185,16 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Use Sentry middleware
+app.UseSentryTracing();
+
 app.MapControllers();
+
+// Ensure database is created and migrations are applied
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
 
 app.Run();
