@@ -12,189 +12,190 @@ using EliteAI.Application.Services;
 using EliteAI.API.Services;
 using RabbitMQ.Client;
 using dotenv.net;
+using Sentry;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Load environment variables
 DotEnv.Load();
 
-// Add services to the container.
-builder.Services.AddControllers();
-builder.Services.AddHttpClient();
-
-// Configure CORS for Swagger UI
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(builder =>
-    {
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
-    });
-});
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// Configure Swagger/OpenAPI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "EliteAI API",
-        Version = "v1",
-        Description = "API for EliteAI basketball training application"
-    });
-
-    // Add JWT Authentication
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
-
-// Configure Sentry
+// Configure Sentry first
 builder.WebHost.UseSentry(options =>
 {
-    options.Dsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
-    options.Debug = builder.Environment.IsDevelopment();
-    options.TracesSampleRate = 1.0;   
+    options.Dsn = "https://f2b9d60acaf1df75f83213dd061c3b4f@o4509048983584768.ingest.de.sentry.io/4509128272379984";
+    options.Debug = true;
+    options.TracesSampleRate = 1.0;
     options.MaxBreadcrumbs = 200;
     options.AttachStacktrace = true;
     options.ShutdownTimeout = TimeSpan.FromSeconds(5);
     options.Environment = builder.Environment.EnvironmentName;
+
 });
 
-// Add Supabase client
-var supabaseUrl = Environment.GetEnvironmentVariable("SUPABASE_URL") ??
-    throw new InvalidOperationException("SUPABASE_URL is not configured. Please add it to your .env file.");
-var supabaseAnonKey = Environment.GetEnvironmentVariable("SUPABASE_ANON_KEY") ??
-    throw new InvalidOperationException("SUPABASE_ANON_KEY is not configured. Please add it to your .env file.");
-var supabaseJwtSecret = Environment.GetEnvironmentVariable("SUPABASE_JWT_SECRET") ??
-    throw new InvalidOperationException("SUPABASE_JWT_SECRET is not configured. Please add it to your .env file.");
+// Log startup
+SentrySdk.CaptureMessage("Application starting up", SentryLevel.Info);
 
-builder.Services.AddScoped<Client>(_ => new Client(supabaseUrl, supabaseAnonKey));
+try
+{
+    // Add services to the container.
+    builder.Services.AddControllers();
+    builder.Services.AddHttpClient();
 
-// Configure JWT Authentication
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    // Configure CORS for Swagger UI
+    builder.Services.AddCors(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        options.AddDefaultPolicy(builder =>
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+    });
+
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    builder.Services.AddEndpointsApiExplorer();
+    SentrySdk.CaptureMessage("Configuring Swagger", SentryLevel.Info);
+    builder.Services.AddSwaggerGen();
+
+    // Configure Swagger/OpenAPI
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "EliteAI API",
+            Version = "v1",
+            Description = "API for EliteAI basketball training application"
+        });
+
+        // Add JWT Authentication
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer"
+        });
+
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+    });
+
+    // Configure Entity Framework
+    SentrySdk.CaptureMessage("Configuring Database", SentryLevel.Info);
+    var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT");
+    var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+    var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+    var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require;Trust Server Certificate=true";
+    SentrySdk.CaptureMessage($"Database Connection String: {connectionString}", SentryLevel.Info);
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString, options =>
+        {
+            options.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+            options.CommandTimeout(60);
+            options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        });
+        options.EnableDetailedErrors();
+        options.EnableSensitiveDataLogging();
+        options.LogTo(Console.WriteLine, LogLevel.Information);
+    });
+
+    // Register AutoMapper
+    builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
+
+    // RabbitMQ Configuration
+    var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
+    var rabbitMqPassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD");
+
+    builder.Services.AddSingleton<IConnection>(sp =>
+    {
+        var factory = new ConnectionFactory
+        {
+            Uri = new Uri(rabbitMqUrl ?? throw new InvalidOperationException("RABBITMQ_URL is not configured")),
+            Password = rabbitMqPassword ?? throw new InvalidOperationException("RABBITMQ_PASSWORD is not configured")
         };
+        return factory.CreateConnectionAsync().Result;
     });
 
-// Configure Entity Framework
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-var dbPort = Environment.GetEnvironmentVariable("DB_PORT");
-var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+    // Register services
+    builder.Services.AddScoped<EliteAI.Application.Interfaces.IMessagePublisher, RabbitMQMessagePublisher>();
 
-var connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode=Require;Trust Server Certificate=true";
+    //Repositories
+    builder.Services.AddScoped<IUserRepository, UserRepository>();
+    builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
+    builder.Services.AddScoped<ISportsRepository, SportsRepository>();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseNpgsql(connectionString, options =>
+    //Services
+    builder.Services.AddScoped<OnboardingService>();
+    builder.Services.AddScoped<UserService>();
+    builder.Services.AddScoped<ProfileService>();
+    builder.Services.AddScoped<SportsService>();
+
+    // Add logging
+    builder.Services.AddLogging();
+
+    var app = builder.Build();
+
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
     {
-        options.EnableRetryOnFailure(
-            maxRetryCount: 3,
-            maxRetryDelay: TimeSpan.FromSeconds(5),
-            errorCodesToAdd: null);
-        options.CommandTimeout(60);
-        options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-    });
-    options.EnableDetailedErrors();
-    options.EnableSensitiveDataLogging();
-    options.LogTo(Console.WriteLine, LogLevel.Information);
-});
+        app.UseDeveloperExceptionPage();
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
-// Register AutoMapper
-builder.Services.AddAutoMapper(Assembly.GetExecutingAssembly());
+    app.UseHttpsRedirection();
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-// RabbitMQ Configuration
-var rabbitMqUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL");
-var rabbitMqPassword = Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD");
+    // Use Sentry middleware
+    app.UseSentryTracing();
 
-builder.Services.AddSingleton<IConnection>(sp =>
-{
-    var factory = new ConnectionFactory
+    app.MapControllers();
+
+    // Ensure database is created and migrations are applied
+    SentrySdk.CaptureMessage("Applying Database Migrations", SentryLevel.Info);
+    using (var scope = app.Services.CreateScope())
     {
-        Uri = new Uri(rabbitMqUrl ?? throw new InvalidOperationException("RABBITMQ_URL is not configured")),
-        Password = rabbitMqPassword ?? throw new InvalidOperationException("RABBITMQ_PASSWORD is not configured")
-    };
-    return factory.CreateConnectionAsync().Result;
-});
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Database.Migrate();
+            SentrySdk.CaptureMessage("Database Migrations Applied Successfully", SentryLevel.Info);
+        }
+        catch (Exception ex)
+        {
+            SentrySdk.CaptureException(ex);
+            throw;
+        }
+    }
 
-// Register services
-builder.Services.AddScoped<EliteAI.Application.Interfaces.IMessagePublisher, RabbitMQMessagePublisher>();
-
-//Repositories
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
-builder.Services.AddScoped<ISportsRepository, SportsRepository>();
-
-//Services
-builder.Services.AddScoped<OnboardingService>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<ProfileService>();
-builder.Services.AddScoped<SportsService>();
-
-// Add logging
-builder.Services.AddLogging();
-
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
-{
-    app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    SentrySdk.CaptureMessage("Application Started Successfully", SentryLevel.Info);
+    app.Run();
 }
-
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Use Sentry middleware
-app.UseSentryTracing();
-
-app.MapControllers();
-
-// Ensure database is created and migrations are applied
-using (var scope = app.Services.CreateScope())
+catch (Exception ex)
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    SentrySdk.CaptureException(ex);
+    throw;
 }
-
-app.Run();
