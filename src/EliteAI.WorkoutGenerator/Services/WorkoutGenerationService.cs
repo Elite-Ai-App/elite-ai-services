@@ -5,6 +5,7 @@ using EliteAI.Domain.Enums;
 using EliteAI.Domain.Helpers;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace EliteAI.WorkoutGenerator.Services;
 
@@ -33,7 +34,7 @@ public class WorkoutGenerationService : IWorkoutGenerationService
     {
 
         if (!Guid.TryParse(userId, out var id)) throw new Exception("User Id Cannot be parsed");
-       
+
 
 
         var user = await _context.Users
@@ -54,12 +55,21 @@ public class WorkoutGenerationService : IWorkoutGenerationService
             throw new InvalidOperationException("Player sport not found");
         }
 
+
+        //TODO REMAP THIS      
+
         var strengthExercises = await _context.Exercises
-            .Where(e => e.Type == ExerciseType.STRENGTH)
+            .Where(e => e.Type == ExerciseType.STRENGTH &&
+                (playerProfile.GymExperience == GymExperience.BEGINNER && e.Level == ExerciseLevel.BEGINNER) ||
+                (playerProfile.GymExperience == GymExperience.INTERMEDIATE && (e.Level == ExerciseLevel.BEGINNER || e.Level == ExerciseLevel.INTERMEDIATE)) ||
+                (playerProfile.GymExperience == GymExperience.ADVANCED))
             .ToListAsync();
 
         var mobilityExercises = await _context.Exercises
-            .Where(e => e.Type == ExerciseType.MOBILITY)
+            .Where(e => e.Type == ExerciseType.MOBILITY &&
+                (playerProfile.GymExperience == GymExperience.BEGINNER && e.Level == ExerciseLevel.BEGINNER) ||
+                (playerProfile.GymExperience == GymExperience.INTERMEDIATE && (e.Level == ExerciseLevel.BEGINNER || e.Level == ExerciseLevel.INTERMEDIATE)) ||
+                (playerProfile.GymExperience == GymExperience.ADVANCED))
             .ToListAsync();
 
         var exerciseDatabasePrompt = $@"
@@ -175,12 +185,36 @@ Create the detailed workout schedules for Week 1 following on the guidelines pro
                 throw new Exception("Response was truncated due to token limit. Please reduce the request size or increase max_tokens.");
             }
 
-            var content = response.Content[0].Text;
-            var workoutPlan = JsonSerializer.Deserialize<ResponseWorkoutPlanResponse>(content.ToJson());
+            var content = response.Content[0].Text.Text.ToString();
+            _logger.LogInformation("Received response from Anthropic: {Content}", content);
 
-            await SaveWorkoutPlanToDatabase(workoutPlan!, id);
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    AllowTrailingCommas = true
+                };
 
-            _logger.LogInformation("Workout plan generated successfully for user {UserId}", userId);
+                var workoutPlan = JsonSerializer.Deserialize<ResponseWorkoutPlanResponse>(content, options);
+
+                if (workoutPlan == null)
+                {
+                    _logger.LogError("Deserialization resulted in null object. Raw content: {Content}", content);
+                    throw new Exception("Failed to deserialize workout plan");
+                }
+
+                _logger.LogInformation("Successfully deserialized workout plan with name: {Name}", workoutPlan.WorkoutPlan.Name);
+
+                await SaveWorkoutPlanToDatabase(workoutPlan, id);
+
+                _logger.LogInformation("Workout plan generated successfully for user {UserId}", userId);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON parsing error. Raw content: {Content}", content);
+                throw;
+            }
         }
         catch (Exception ex)
         {
@@ -191,106 +225,69 @@ Create the detailed workout schedules for Week 1 following on the guidelines pro
 
     private async Task SaveWorkoutPlanToDatabase(ResponseWorkoutPlanResponse workoutPlan, Guid userId)
     {
-        var today = DateTime.UtcNow;
-        var startDate = new DateTime(today.Year, today.Month, today.Day);
-
-        // Find the next Monday
-        var currentDay = startDate.DayOfWeek;
-        var daysUntilMonday = currentDay == DayOfWeek.Sunday ? 1 : (8 - (int)currentDay) % 7;
-        startDate = startDate.AddDays(daysUntilMonday);
-
-        // Check if we're more than halfway through the current week
-        var currentWeekDay = today.DayOfWeek;
-        var isMoreThanHalfwayThroughWeek = (int)currentWeekDay >= 4; // Thursday or later
-
-        // Determine if we need a 2-week plan
-        var hasActivePlan = await HasActivePlan(userId);
-        var isMoreThanHalfwayThroughPlan = await IsMoreThanHalfwayThroughPlan(userId);
-
-        // Generate a 2-week plan if:
-        // 1. User has no active plan AND we're more than halfway through the week, OR
-        // 2. User has an active plan AND is more than halfway through it
-        var needsTwoWeekPlan = (!hasActivePlan && isMoreThanHalfwayThroughWeek) ||
-                             (hasActivePlan && isMoreThanHalfwayThroughPlan);
-
-        var planDuration = needsTwoWeekPlan ? 14 : 7;
-        var endDate = startDate.AddDays(planDuration);
-
-        // Create the workout plan
-        var createdPlan = new WorkoutPlan
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            UserId = userId,
-            Name = workoutPlan.WorkoutPlan.Name,
-            Description = workoutPlan.WorkoutPlan.Description,
-            StartDate = startDate,
-            EndDate = endDate
-        };
+            _logger.LogInformation("Starting to save workout plan for user {UserId}", userId);
 
-        _context.WorkoutPlans.Add(createdPlan);
-        await _context.SaveChangesAsync();
+            var today = DateTime.UtcNow;
+            var startDate = new DateTime(today.Year, today.Month, today.Day, 0, 0, 0, DateTimeKind.Utc);
 
-        // Create schedules for each workout
-        foreach (var schedule in workoutPlan.WorkoutPlan.Schedules)
-        {
-            // Calculate the date for this schedule based on the day of week
-            var scheduleDate = CalculateScheduleDate(startDate, schedule.DayOfWeek);
+            // Find the next Monday
+            var currentWeekDay = today.DayOfWeek;
+            startDate = currentWeekDay == DayOfWeek.Sunday ? startDate.AddDays(1) : startDate.AddDays(-(int)currentWeekDay);
 
-            // Create the schedule
-            var createdSchedule = new WorkoutPlanSchedule
+            // Check if we're more than halfway through the current week
+            var isMoreThanHalfwayThroughWeek = (int)currentWeekDay >= 4; // Thursday or later
+
+            // Determine if we need a 2-week plan
+            var hasActivePlan = await HasActivePlan(userId);
+            var isMoreThanHalfwayThroughPlan = await IsMoreThanHalfwayThroughPlan(userId);
+
+            // Generate a 2-week plan if:
+            // 1. User has no active plan AND we're more than halfway through the week, OR
+            // 2. User has an active plan AND is more than halfway through it
+            var needsTwoWeekPlan = (!hasActivePlan && isMoreThanHalfwayThroughWeek) ||
+                                 (hasActivePlan && isMoreThanHalfwayThroughPlan);
+
+            var planDuration = needsTwoWeekPlan ? 14 : 7;
+            var endDate = startDate.AddDays(planDuration);
+
+            _logger.LogInformation("Creating workout plan with start date {StartDate} and end date {EndDate}", startDate, endDate);
+
+            // Create the workout plan
+            var createdPlan = new WorkoutPlan
             {
-                WorkoutPlanId = createdPlan.Id,
-                DayOfWeek = schedule.DayOfWeek,
-                WorkoutPlanName = schedule.WorkoutPlanName,
-                Date = scheduleDate
+                UserId = userId,
+                Name = workoutPlan.WorkoutPlan.Name,
+                Description = workoutPlan.WorkoutPlan.Description,
+                StartDate = startDate,
+                EndDate = endDate,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
-            _context.WorkoutSchedules.Add(createdSchedule);
+            _context.WorkoutPlans.Add(createdPlan);
             await _context.SaveChangesAsync();
+            _logger.LogInformation("Created workout plan with ID {PlanId}", createdPlan.Id);
 
-            // If it's not a rest day and has a workout, create the workout
-            if (!schedule.IsRestDay && schedule.Workout != null)
-            {
-                // Create the workout
-                var createdWorkout = new Workout
-                {
-                    Name = schedule.Workout.Name,
-                    Description = schedule.Workout.Description,
-                    WorkoutPlanScheduleId = createdSchedule.Id
-                };
+            // Get all exercise IDs from the database for validation
+            var validExerciseIds = await _context.Exercises
+                .Select(e => e.Id)
+                .ToListAsync();
+            _logger.LogInformation("Retrieved {Count} valid exercise IDs from database: {ExerciseIds}",
+                validExerciseIds.Count,
+                string.Join(", ", validExerciseIds));
 
-                _context.Workouts.Add(createdWorkout);
-                await _context.SaveChangesAsync();
-
-                // Create exercises for each workout
-                foreach (var exercise in schedule.Workout.Exercises)
-                {
-                    var workoutExercise = new WorkoutExercise
-                    {
-                        WorkoutId = createdWorkout.Id,
-                        ExerciseId = exercise.ExerciseId,
-                        Sets = exercise.Sets,
-                        Reps = exercise.Reps,
-                        Order = exercise.Order
-                    };
-
-                    _context.WorkoutExercises.Add(workoutExercise);
-                }
-            }
-        }
-
-        await _context.SaveChangesAsync();
-
-        // If this is a 2-week plan, duplicate the schedules for the second week
-        if (needsTwoWeekPlan)
-        {
-            var secondWeekStartDate = startDate.AddDays(7);
-
+            // Create schedules for each workout
             foreach (var schedule in workoutPlan.WorkoutPlan.Schedules)
             {
                 // Calculate the date for this schedule based on the day of week
-                var scheduleDate = CalculateScheduleDate(secondWeekStartDate, schedule.DayOfWeek);
+                var scheduleDate = CalculateScheduleDate(startDate, schedule.DayOfWeek);
 
-                // Create the schedule for the second week
+                _logger.LogInformation("Creating schedule for {DayOfWeek} on {ScheduleDate}", schedule.DayOfWeek, scheduleDate);
+
+                // Create the schedule
                 var createdSchedule = new WorkoutPlanSchedule
                 {
                     WorkoutPlanId = createdPlan.Id,
@@ -301,45 +298,183 @@ Create the detailed workout schedules for Week 1 following on the guidelines pro
 
                 _context.WorkoutSchedules.Add(createdSchedule);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Created schedule with ID {ScheduleId}", createdSchedule.Id);
 
                 // If it's not a rest day and has a workout, create the workout
                 if (!schedule.IsRestDay && schedule.Workout != null)
                 {
+                    _logger.LogInformation("Creating workout for schedule {ScheduleId}", createdSchedule.Id);
+
                     // Create the workout
                     var createdWorkout = new Workout
                     {
                         Name = schedule.Workout.Name,
                         Description = schedule.Workout.Description,
-                        WorkoutPlanScheduleId = createdSchedule.Id
+                        WorkoutPlanScheduleId = createdSchedule.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     };
 
                     _context.Workouts.Add(createdWorkout);
                     await _context.SaveChangesAsync();
+                    _logger.LogInformation("Created workout with ID {WorkoutId}", createdWorkout.Id);
 
                     // Create exercises for each workout
                     foreach (var exercise in schedule.Workout.Exercises)
                     {
-                        var workoutExercise = new WorkoutExercise
-                        {
-                            WorkoutId = createdWorkout.Id,
-                            ExerciseId = exercise.ExerciseId,
-                            Sets = exercise.Sets,
-                            Reps = exercise.Reps,
-                            Order = exercise.Order
-                        };
+                        _logger.LogInformation("Processing exercise with ID {ExerciseId} for workout {WorkoutId}",
+                            exercise.ExerciseId,
+                            createdWorkout.Id);
 
-                        _context.WorkoutExercises.Add(workoutExercise);
+                        // Validate that the exercise ID exists
+                        if (!validExerciseIds.Contains(exercise.ExerciseId))
+                        {
+                            _logger.LogError("Invalid exercise ID {ExerciseId} found in workout plan. Valid exercise IDs are: {ValidExerciseIds}",
+                                exercise.ExerciseId,
+                                string.Join(", ", validExerciseIds));
+                            throw new InvalidOperationException($"Invalid exercise ID {exercise.ExerciseId} found in workout plan");
+                        }
+
+                        try
+                        {
+                            var workoutExercise = new WorkoutExercise
+                            {
+                                WorkoutId = createdWorkout.Id,
+                                ExerciseId = exercise.ExerciseId,
+                                Sets = exercise.Sets,
+                                Reps = exercise.Reps,
+                                Order = exercise.Order
+                            };
+
+                            _context.WorkoutExercises.Add(workoutExercise);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("Successfully saved exercise {ExerciseId} for workout {WorkoutId}",
+                                exercise.ExerciseId,
+                                createdWorkout.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to save exercise {ExerciseId} for workout {WorkoutId}. Exercise details: Sets={Sets}, Reps={Reps}, Order={Order}",
+                                exercise.ExerciseId,
+                                createdWorkout.Id,
+                                exercise.Sets,
+                                exercise.Reps,
+                                exercise.Order);
+                            throw;
+                        }
                     }
                 }
             }
 
-            await _context.SaveChangesAsync();
+            // If this is a 2-week plan, duplicate the schedules for the second week
+            if (needsTwoWeekPlan)
+            {
+                _logger.LogInformation("Creating second week of workout plan");
+                var secondWeekStartDate = startDate.AddDays(7);
+
+                foreach (var schedule in workoutPlan.WorkoutPlan.Schedules)
+                {
+                    // Calculate the date for this schedule based on the day of week
+                    var scheduleDate = CalculateScheduleDate(secondWeekStartDate, schedule.DayOfWeek);
+
+                    _logger.LogInformation("Creating second week schedule for {DayOfWeek} on {ScheduleDate}", schedule.DayOfWeek, scheduleDate);
+
+                    // Create the schedule for the second week
+                    var createdSchedule = new WorkoutPlanSchedule
+                    {
+                        WorkoutPlanId = createdPlan.Id,
+                        DayOfWeek = schedule.DayOfWeek,
+                        WorkoutPlanName = schedule.WorkoutPlanName,
+                        Date = scheduleDate
+                    };
+
+                    _context.WorkoutSchedules.Add(createdSchedule);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Created second week schedule with ID {ScheduleId}", createdSchedule.Id);
+
+                    // If it's not a rest day and has a workout, create the workout
+                    if (!schedule.IsRestDay && schedule.Workout != null)
+                    {
+                        _logger.LogInformation("Creating second week workout for schedule {ScheduleId}", createdSchedule.Id);
+
+                        // Create the workout
+                        var createdWorkout = new Workout
+                        {
+                            Name = schedule.Workout.Name,
+                            Description = schedule.Workout.Description,
+                            WorkoutPlanScheduleId = createdSchedule.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+
+                        _context.Workouts.Add(createdWorkout);
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Created second week workout with ID {WorkoutId}", createdWorkout.Id);
+
+                        // Create exercises for each workout
+                        foreach (var exercise in schedule.Workout.Exercises)
+                        {
+                            _logger.LogInformation("Processing second week exercise with ID {ExerciseId} for workout {WorkoutId}",
+                                exercise.ExerciseId,
+                                createdWorkout.Id);
+
+                            // Validate that the exercise ID exists
+                            if (!validExerciseIds.Contains(exercise.ExerciseId))
+                            {
+                                _logger.LogError("Invalid exercise ID {ExerciseId} found in second week workout plan. Valid exercise IDs are: {ValidExerciseIds}",
+                                    exercise.ExerciseId,
+                                    string.Join(", ", validExerciseIds));
+                                throw new InvalidOperationException($"Invalid exercise ID {exercise.ExerciseId} found in second week workout plan");
+                            }
+
+                            try
+                            {
+                                var workoutExercise = new WorkoutExercise
+                                {
+                                    WorkoutId = createdWorkout.Id,
+                                    ExerciseId = exercise.ExerciseId,
+                                    Sets = exercise.Sets,
+                                    Reps = exercise.Reps,
+                                    Order = exercise.Order
+                                };
+
+                                _context.WorkoutExercises.Add(workoutExercise);
+                                await _context.SaveChangesAsync();
+                                _logger.LogInformation("Successfully saved second week exercise {ExerciseId} for workout {WorkoutId}",
+                                    exercise.ExerciseId,
+                                    createdWorkout.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to save second week exercise {ExerciseId} for workout {WorkoutId}. Exercise details: Sets={Sets}, Reps={Reps}, Order={Order}",
+                                    exercise.ExerciseId,
+                                    createdWorkout.Id,
+                                    exercise.Sets,
+                                    exercise.Reps,
+                                    exercise.Order);
+                                throw;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If we get here, everything was successful, so commit the transaction
+            await transaction.CommitAsync();
+            _logger.LogInformation("Successfully completed saving workout plan for user {UserId}", userId);
+        }
+        catch (Exception ex)
+        {
+            // If any error occurs, roll back the transaction
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error saving workout plan to database for user {UserId}. All changes have been rolled back.", userId);
+            throw;
         }
     }
 
     private DateTime CalculateScheduleDate(DateTime startDate, TrainingDayOfWeek dayOfWeek)
     {
-        var scheduleDate = new DateTime(startDate.Year, startDate.Month, startDate.Day);
+        var scheduleDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, 0, 0, 0, DateTimeKind.Utc);
         var targetDay = ((int)dayOfWeek);
         var currentDay = (int)scheduleDate.DayOfWeek;
 
@@ -352,8 +487,6 @@ Create the detailed workout schedules for Week 1 following on the guidelines pro
 
         return scheduleDate.AddDays(daysToAdd);
     }
-
-  
 
     private async Task<bool> HasActivePlan(Guid userId)
     {
@@ -389,35 +522,60 @@ Create the detailed workout schedules for Week 1 following on the guidelines pro
 
 public class ResponseWorkoutPlanResponse
 {
+    [JsonPropertyName("workoutPlan")]
     public ResponseWorkoutPlan WorkoutPlan { get; set; } = null!;
 }
 
 public class ResponseWorkoutPlan
 {
+    [JsonPropertyName("name")]
     public string Name { get; set; } = null!;
+
+    [JsonPropertyName("description")]
     public string Description { get; set; } = null!;
+
+    [JsonPropertyName("schedules")]
     public List<ResponseSchedule> Schedules { get; set; } = new();
 }
 
 public class ResponseSchedule
 {
+    [JsonPropertyName("dayOfWeek")]
     public TrainingDayOfWeek DayOfWeek { get; set; }
+
+    [JsonPropertyName("workoutPlanName")]
     public string WorkoutPlanName { get; set; } = null!;
+
+    [JsonPropertyName("isRestDay")]
     public bool IsRestDay { get; set; }
+
+    [JsonPropertyName("workout")]
     public ResponseWorkout? Workout { get; set; }
 }
 
 public class ResponseWorkout
 {
+    [JsonPropertyName("name")]
     public string Name { get; set; } = null!;
+
+    [JsonPropertyName("description")]
     public string Description { get; set; } = null!;
+
+    [JsonPropertyName("exercises")]
     public List<ResponseExercise> Exercises { get; set; } = new();
 }
 
 public class ResponseExercise
 {
+    [JsonPropertyName("exerciseId")]
     public Guid ExerciseId { get; set; }
+
+    [JsonPropertyName("sets")]
     public int Sets { get; set; }
+
+    [JsonPropertyName("reps")]
     public int Reps { get; set; }
+
+    [JsonPropertyName("order")]
     public int Order { get; set; }
-} 
+}

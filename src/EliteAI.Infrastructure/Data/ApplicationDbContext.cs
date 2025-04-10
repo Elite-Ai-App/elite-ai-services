@@ -79,6 +79,13 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(e => e.WorkoutId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Configure Exercise
+        modelBuilder.Entity<Exercise>()
+            .HasMany(e => e.WorkoutExercises)
+            .WithOne(we => we.Exercise)
+            .HasForeignKey(we => we.ExerciseId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Configure WorkoutLog
         modelBuilder.Entity<WorkoutLog>()
             .HasOne(l => l.Workout)
