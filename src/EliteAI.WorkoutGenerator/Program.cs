@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using dotenv.net;
-using Sentry;
+
 
 namespace EliteAI.WorkoutGenerator;
 
