@@ -5,19 +5,34 @@ using Microsoft.EntityFrameworkCore;
 using EliteAI.Infrastructure.Data;
 using EliteAI.Application.Interfaces;
 using EliteAI.Infrastructure.Repositories;
-using System.Reflection;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using EliteAI.Application.Services;
 using EliteAI.API.Services;
 using RabbitMQ.Client;
 using dotenv.net;
-using Sentry;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure URLs
 builder.WebHost.UseUrls("http://*:80");
+
+// Configure Sentry first
+builder.WebHost.UseSentry(options =>
+{
+    options.Dsn = "https://f2b9d60acaf1df75f83213dd061c3b4f@o4509048983584768.ingest.de.sentry.io/4509128272379984";
+    options.Debug = true;
+    options.TracesSampleRate = 1.0;
+    options.MaxBreadcrumbs = 200;
+    options.AttachStacktrace = true;
+    options.ShutdownTimeout = TimeSpan.FromSeconds(5);
+    options.Environment = builder.Environment.EnvironmentName;
+
+});
+
+
+
 
 // Load environment variables from .env file
 var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
@@ -35,22 +50,6 @@ else
     Console.WriteLine(".env file not found!");
 }
 
-
-
-
-
-// Configure Sentry first
-builder.WebHost.UseSentry(options =>
-{
-    options.Dsn = "https://f2b9d60acaf1df75f83213dd061c3b4f@o4509048983584768.ingest.de.sentry.io/4509128272379984";
-    options.Debug = true;
-    options.TracesSampleRate = 1.0;
-    options.MaxBreadcrumbs = 200;
-    options.AttachStacktrace = true;
-    options.ShutdownTimeout = TimeSpan.FromSeconds(5);
-    options.Environment = builder.Environment.EnvironmentName;
-
-});
 
 // Log startup
 SentrySdk.CaptureMessage("Application starting up", SentryLevel.Info);

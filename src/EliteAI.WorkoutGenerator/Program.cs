@@ -5,9 +5,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using EliteAI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using dotenv.net;
-using System;
-using System.IO;
-using System.Threading;
+using Sentry;
 
 namespace EliteAI.WorkoutGenerator;
 
@@ -16,6 +14,20 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+
+        builder.WebHost.UseSentry(options =>
+        {
+            options.Dsn = "https://543a01428bb0981002c3870c4ce87a96@o4509048983584768.ingest.de.sentry.io/45091310543176484";
+            options.Debug = true;
+            options.TracesSampleRate = 1.0;
+            options.MaxBreadcrumbs = 200;
+            options.AttachStacktrace = true;
+            options.ShutdownTimeout = TimeSpan.FromSeconds(5);
+            options.Environment = builder.Environment.EnvironmentName;
+
+        });
+
 
         // Load environment variables from .env file
         var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
